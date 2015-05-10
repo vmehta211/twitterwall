@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel='stylesheet' href='css/main.css'/>
+        <title>TwitterWall</title>     
+        <script src="js/jquery.min.js"></script>
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+            var debugsocket = null;
+            var startTime = 0;
+            var timerInt = 0;
+            var imageCount = 1;
+            var allowStarting = true;
+
+            var guessTotalTime = 225;
+
+            function getParameterByName(name) {
+                name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+                var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+                        results = regex.exec(location.search);
+                return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+            }
+
+            $(function() {
+                var iosocket = io.connect();
+                debugsocket = iosocket;
+                iosocket.once('connect', function() {
+
+
+                    iosocket.on('message', function(message) {
+                        $('#incomingChatMessages').append($('<li></li>').text(message));
+                    });
+                    iosocket.on('disconnect', function() {
+
+                    });
+                    iosocket.on('rfid_read', function(rfid) {
+                        flashText(rfid);
+                    });
+                    iosocket.on('reconnect', function() {
+                        $('#incomingChatMessages').append('<li>Reconnected</li>');
+                    });
+                    function showImage(imageurl, imageNum) {
+
+                        iosocket.emit('startPhotobooth', 2);
+                    }
+
+                });
+                function flashText(rfid) {
+                    $('#twitter_logo').show();
+                    $('#rfid').text(rfid);
+                    setTimeout(function() {
+                        $('#twitter_logo').hide();
+                        $('#rfid').hide();
+                    }, 8000);
+                }
+            });
+
+        </script>
+    </head>
+    <body>
+        <div>
+             <span id="rfid"></span>
+        </div>
+        <img id="twitter_logo" src="images/twitter.png"/>
+    </body>
+</html>
+
+

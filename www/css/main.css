@@ -1,0 +1,29 @@
+*{ cursor: none;
+   -moz-user-select: none; 
+   -webkit-user-select: none; 
+   -ms-user-select:none; 
+   user-select:none;
+}
+html {
+    background: url('../images/keep-calm-and-girl-power-1.png') no-repeat center center fixed ;
+    background-color: black;
+
+    /*    background: url('http://10.0.0.1:81/content/pix/') no-repeat center center fixed;ß
+        background-color: red;
+        -webkit-background-size: cover;
+        -moz-background-size: cover;
+        -o-background-size: cover;
+        background-size: cover;*/
+}
+
+
+#twitter_logo{
+    width: 120px;
+    margin-left: 740px;
+    margin-top: 100px;
+    display: none;
+}
+
+#rfid{
+    color: white;
+}
