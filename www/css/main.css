@@ -4,8 +4,8 @@
    -ms-user-select:none; 
    user-select:none;
 }
-html {
-    background: url('../images/keep-calm-and-girl-power-1.png') no-repeat center center fixed ;
+body {
+    background: url('') no-repeat center center fixed ;
     background-color: black;
 
     /*    background: url('http://10.0.0.1:81/content/pix/') no-repeat center center fixed;ß
@@ -19,11 +19,42 @@ html {
 
 #twitter_logo{
     width: 120px;
-    margin-left: 740px;
-    margin-top: 100px;
+    position: absolute;
+    left: 50px;
+    top: 50px;
     display: none;
 }
 
 #rfid{
     color: white;
+}
+
+
+.info, .success, .warning, .error, .validation {
+    border: 1px solid;
+    margin: 10px 0px;
+    padding:15px 10px 15px 50px;
+    background-repeat: no-repeat;
+    background-position: 10px center;
+    width: 300px;
+}
+.info {
+    color: #00529B;
+    background-color: #BDE5F8;
+    background-image: url('../images/icons/info.png');
+}
+.success {
+    color: #4F8A10;
+    background-color: #DFF2BF;
+    background-image:url('../images/icons/success.png');
+}
+.warning {
+    color: #9F6000;
+    background-color: #FEEFB3;
+    background-image: url('../images/icons/warning.png');
+}
+.error {
+    color: #D8000C;
+    background-color: #FFBABA;
+    background-image: url('../images/icons/fail.png');
 }
