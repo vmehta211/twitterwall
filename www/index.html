@@ -33,9 +33,23 @@
                     iosocket.on('disconnect', function() {
 
                     });
-                    iosocket.on('rfid_read', function(rfid) {
-                        flashText(rfid);
+
+                    iosocket.on('setQuoteData', function(quoteUrl){
+                       setBackgroundQuote(quoteUrl);
                     });
+
+                    iosocket.on('rfid_read', function(rfid) {
+                        floatTwitterLogo();
+                    });
+
+                    iosocket.on('socialize',function(status){
+                       if(status == 'success'){
+                           showSuccess();
+                       }else{
+                           showError();
+                       }
+                    });
+
                     iosocket.on('reconnect', function() {
                         $('#incomingChatMessages').append('<li>Reconnected</li>');
                     });
@@ -45,23 +59,51 @@
                     }
 
                 });
-                function flashText(rfid) {
-                    $('#twitter_logo').show();
-                    $('#rfid').text(rfid);
-                    setTimeout(function() {
-                        $('#twitter_logo').hide();
-                        $('#rfid').hide();
-                    }, 8000);
-                }
+
+
+                setInterval(function(){
+                    if(document.body.style.backgroundImage == ''){
+                        iosocket.emit('getQuote');
+                    }
+                }, 5000);
+
             });
 
+
+            function floatTwitterLogo() {
+                $('#twitter_logo').show().animate({
+                    left: '400px'
+                }, 7400);
+
+                setTimeout(function() {
+                    $('#twitter_logo').hide().css('left','50px');
+                }, 8000);
+            }
+
+            function setBackgroundQuote(quoteUrl){
+                console.log('setBackgroundQuote',quoteUrl);
+                document.body.style.backgroundImage = "url('"+quoteUrl+"')";
+            }
+
+            function showError(){
+                $('#error').show();
+                setTimeout(function(){
+                    $('#error').hide();
+                }, 8000);
+            }
+
+            function showSuccess(){
+                $('#success').show();
+                setTimeout(function(){
+                    $('#success').hide();
+                }, 8000);
+            }
         </script>
     </head>
     <body>
-        <div>
-             <span id="rfid"></span>
-        </div>
         <img id="twitter_logo" src="images/twitter.png"/>
+        <div class="error" id="error" style="display:none">Please register wristband</div>
+        <div class="success" id="success" style="display:none">Posted!</div>
     </body>
 </html>
 

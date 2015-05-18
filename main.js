@@ -25,14 +25,23 @@ var spawn = require('child_process').spawn;
 var getMac = require('getmac');
 var OAuth = require('oauth').OAuth;
 var util = require('util');
-var config = require('./oauth.js');
 var macAddress = '';
-var mysql = require('mysql');
 var Tail = require('tail').Tail;
 var listenToRfid = true;
 var currentRfid = '';
 var https = require('https');
 var http = require('http');
+var config;
+if(fs.existsSync('/var/secure/twitterwall/config.js')){
+    console.log('found config file in /var/secure');
+    config = require('/var/secure/twitterwall/config.js');
+}
+else{
+    config = require('./config.js')
+}
+
+var quoteData = null;
+
 
 
 function getTime() {
@@ -41,18 +50,16 @@ function getTime() {
 
 getMacAddress();
 
-var connection = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: 'Hamburger123!'
-});
-connection.connect(function(err) {
-// connected! (unless `err` is set)
-    if (err) {
-        console.log('mysql error: ', err);
-        return false;
+var getQuoteInterval = setInterval(function(){
+    if(macAddress != ''){
+        clearInterval(getQuoteInterval);
+        getQuote();
     }
-});
+}, 1000);
+
+
+
+
 
 io.sockets.on('connection', function(socket) {
     console.log("Establishing new connection");
@@ -76,33 +83,68 @@ io.sockets.on('connection', function(socket) {
         socket.broadcast.emit('message', data);
     });
 
-
-
-    socket.on('startPhotobooth', function(picNum) {
-
-
-        console.log('startProtobothcalled')
+    socket.on('getQuote', function() {
+       if(quoteData == null){
+           getQuote();
+       }else{
+           io.sockets.emit('setQuoteData',quoteData.quote_url);
+       }
     });
+
+
 });
 
 
+function getQuote(){
+    var mac = macAddress;
 
-function takePicture(picNum) {
+    var options = {
+        host: config.app.socialposter,
+        port: 80,
+        path: '/getquote/' + mac + '/' + Date.now() + '/signature',
+        method: 'GET'
+    };
 
+    console.log('going to make request with ', options);
+    var req = http.request(options, function (res) {
+        res.setEncoding('utf-8');
+        var responseString = '';
 
-    console.log('takePicture()');
-//    process.chdir('/var/www/content/pix/dslr/');
-    var cmd = 'gphoto2 --auto-detect  --capture-image-and-download --force-overwrite --filename=/var/www/content/pix/dslr/pic_' + picNum + '.jpg';
-    console.log(cmd);
-    exec(cmd, {cwd: dslr_dir}, function(error, stdout, stderr) {
-        if (error == '' || error == null) {
+        //another chunk of data has been recieved, so append it to `str`
+        res.on('data', function (chunk) {
+            responseString += chunk;
+        });
 
-        }
-        console.log(stdout, stderr)
-        io.sockets.emit('message', 'completed taking picture');
-        io.sockets.emit('showimage', 'http://localhost:81/content/pix/dslr/pic_' + picNum + '.jpg');
+        res.on('end', function () {
+            try {
+                var resultObject = JSON.parse(responseString);
+                console.log('the response was', resultObject);
+                if(resultObject.result == 'fail'){
+                    setTimeout('getQuote', 5000);
+                }else{
+                    quoteData = resultObject;
+                    io.sockets.emit('setQuoteData',resultObject.quote_url);
+                }
 
+            } catch (e) {
+                console.log('the response was not JSON', e, responseString);
+                setTimeout('getQuote', 5000);
+            }
+        });
     });
+
+    req.on('socket', function (socket) {
+        socket.setTimeout(10000);
+        socket.on('timeout', function() {
+            req.abort();
+        });
+    });
+
+    req.on('error', function (e) {
+        // TODO: handle error.
+        console.log('there was an error', e);
+    });
+    req.end();
 }
 
 
@@ -145,41 +187,9 @@ var nfc_eventdInt = setInterval(function() {
                 //io.sockets.emit('nfcevent', rfid);
                 currentRfid = rfid;
                 io.sockets.emit('rfid_read', rfid);
-
-                var fileLocation = '/home/pi/public_html/twitterwall/www/images/keep-calm-and-girl-power-1.png';
-                var msg = 'HM Technology says Go Girl Power!';
-
-                var rfidin = '1672552582';
-                postToTwitter(rfidin, msg, fileLocation);
-
-
-
-
-
-//                var data = getDataWithRfid(rfid, function(data) {
-//
-//                    var packet = {
-//                        msg: 'Thank you. You may now link your wristband with your favorite social networking sites.',
-//                        showSocial: true,
-//                        rfid: rfid,
-//                        alreadyLinked: false
-//                    }
-//
-//                    //console.log(data);
-//
-//                    if (data !== false && (data.facebook_data != null || data.twitter_data != null)) {
-//                        packet.msg = 'This wristband is already linked.';
-//                        packet.links = data;
-//                        packet.alreadyLinked = true;
-//                    } else if (data === false) {
-//                        addRfid(rfid);
-//                    }
-//
-//                    io.sockets.emit('nfcevent', packet);
-//                });
-
+                postToSocialPoster(rfid, quoteData.quote_id);
             }
-            //console.log(data);
+
         });
     } catch (e) {
         console.log('error checking for rfid_RC522.log');
@@ -187,90 +197,57 @@ var nfc_eventdInt = setInterval(function() {
     }
 }, 2000);
 
-function twitterLoadComplete(){
-    console.log('twitterLoadComplete()');
+
+function postToSocialPoster(rfid, quote_id){
+    var options = {
+        host: config.app.socialposter,
+        port: 80,
+        path: '/post/' + rfid + '/' + quote_id + '/'+ Date.now() + '/signature',
+        method: 'POST'
+    };
+
+    console.log('going to make request with ', options);
+    var req = http.request(options, function (res) {
+        res.setEncoding('utf-8');
+        var responseString = '';
+        res.on('data', function (chunk) {
+            responseString += chunk;
+        });
+        res.on('end', function () {
+            try {
+                var resultObject = JSON.parse(responseString);
+                console.log('the response was', resultObject);
+
+                if(resultObject.result == 'success'){
+                    successfullySocialized();
+                }else{
+                    failedToSocialize();
+                }
+
+            } catch (e) {
+                console.log('the response was not JSON', e, responseString);
+                failedToSocialize();
+            }
+        });
+    });
+    req.on('socket', function (socket) {
+        socket.setTimeout(10000);
+        socket.on('timeout', function() {
+            req.abort();
+        });
+    });
+    req.on('error', function (e) {
+        // TODO: handle error.
+        console.log('there was an error', e);
+        failedToSocialize();
+    });
+    req.end();
 }
 
-function postToTwitter(rfidin, msg, fileLocation) {
-    console.log('gonna post to fb', msg, fileLocation);
+function successfullySocialized(){
+    io.sockets.emit('socialize', 'success');
+}
 
-        var sql = "SELECT * FROM picture_taker.users WHERE ? LIMIT 1";
-        var twitter_access_token = '';
-        var twitter_authtoken_secret = '';
-        connection.query(sql, {rfid: rfidin}, function(err, rows) {
-
-            if (rows.length > 0 && rows[0].twitter_data != null) {
-                var mydata = JSON.parse(rows[0].twitter_data);
-                twitter_access_token = mydata.accessToken;
-                twitter_authtoken_secret = mydata.accessTokenSecret;
-            } else {
-                console.log('could not locate auth token');
-                return false;
-            }
-
-            var fileName = fileLocation;
-            var tweet = msg;
-            var photoName = fileName.split('/');
-            photoName = photoName[photoName.length - 1];
-            var data = fs.readFileSync(fileName);
-            var oauth = new OAuth(
-                'https://api.twitter.com/oauth/request_token',
-                'https://api.twitter.com/oauth/access_token',
-                config.twitter.consumerKey, config.twitter.consumerSecret,
-                '1.0', null, 'HMAC-SHA1');
-            var crlf = "\r\n";
-            var boundary = '---------------------------10102754414578508781458777923';
-            var separator = '--' + boundary;
-            var footer = crlf + separator + '--' + crlf;
-            var fileHeader = 'Content-Disposition: file; name="media[]"; filename="' + photoName + '"';
-            var contents = separator + crlf
-                + 'Content-Disposition: form-data; name="status"' + crlf
-                + crlf
-                + tweet + crlf
-                + separator + crlf
-                + fileHeader + crlf
-                + 'Content-Type: image/jpeg' + crlf
-                + crlf;
-            var multipartBody = Buffer.concat([
-                new Buffer(contents),
-                data,
-                new Buffer(footer)]);
-            var hostname = 'api.twitter.com';
-            var authorization = oauth.authHeader(
-                'https://api.twitter.com/1.1/statuses/update_with_media.json',
-                config.twitter.accessToken, config.twitter.accessTokenSecret, 'POST');
-            var authorization = oauth.authHeader(
-                'https://api.twitter.com/1.1/statuses/update_with_media.json',
-                twitter_access_token, twitter_authtoken_secret, 'POST');
-            var headers = {
-                'Authorization': authorization,
-                'Content-Type': 'multipart/form-data; boundary=' + boundary,
-                'Host': hostname,
-                'Content-Length': multipartBody.length,
-                'Connection': 'Keep-Alive'
-            };
-            var options = {
-                host: hostname,
-                port: 443,
-                path: '/1.1/statuses/update_with_media.json',
-                method: 'POST',
-                headers: headers
-            };
-            var request = https.request(options);
-            request.write(multipartBody);
-            request.end();
-            request.on('error', function(err) {
-                console.log('Error: Something is wrong.\n' + JSON.stringify(err) + '\n');
-            });
-            request.on('response', function(response) {
-                response.setEncoding('utf8');
-                response.on('data', function(chunk) {
-                    console.log(chunk.toString());
-                });
-                response.on('end', function() {
-                    twitterLoadComplete();
-                    console.log(response.statusCode + '\n');
-                });
-            });
-        });
+function failedToSocialize(){
+    io.sockets.emit('socialize', 'fail');
 }
