@@ -15,7 +15,7 @@ var io = require('socket.io').listen(server);
 var crypto = require('crypto');
 var request = require('request');
 var uploadKey = 'Ph0t0Station!123';
-
+var md5 = require('MD5');
 var fs = require('fs');
 
 require('console-stamp')(console, '[HH:mm:ss.l]');
@@ -84,11 +84,11 @@ io.sockets.on('connection', function(socket) {
     });
 
     socket.on('getQuote', function() {
-       if(quoteData == null){
-           getQuote();
-       }else{
-           io.sockets.emit('setQuoteData',quoteData.quote_url);
-       }
+        if(quoteData == null){
+            getQuote();
+        }else{
+            io.sockets.emit('setQuoteData',quoteData.quote_url);
+        }
     });
 
 
@@ -97,11 +97,12 @@ io.sockets.on('connection', function(socket) {
 
 function getQuote(){
     var mac = macAddress;
-
+    var apiPath = '/getquote/' + mac + '/' + Date.now() + '/';
+    var sig = md5(apiPath + config.app.apikey);
     var options = {
         host: config.app.socialposter,
         port: 80,
-        path: '/getquote/' + mac + '/' + Date.now() + '/signature',
+        path: apiPath+sig,
         method: 'GET'
     };
 
