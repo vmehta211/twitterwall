@@ -200,10 +200,13 @@ var nfc_eventdInt = setInterval(function() {
 
 
 function postToSocialPoster(rfid, quote_id){
+    var apiPath = '/post/' +rfid + '/' + quote_id + '/'+ Date.now() + '/';
+    var sig = md5(apiPath + config.app.apikey);
+
     var options = {
         host: config.app.socialposter,
         port: 80,
-        path: '/post/' + rfid + '/' + quote_id + '/'+ Date.now() + '/signature',
+        path: apiPath+sig,
         method: 'POST'
     };
 
