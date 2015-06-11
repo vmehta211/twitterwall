@@ -180,7 +180,7 @@ var nfc_eventdInt = setInterval(function() {
             }
 
 
-            if (data.search('SNlen=4 SN=') !== -1) {
+            if (data.search('SNlen=[0-9]+ SN=') !== -1) {
                 rfid = data.substring(data.lastIndexOf("=") + 2, data.lastIndexOf("]"));
                 console.log("the data is here: ", rfid);
                 rfid = parseInt('0x' + rfid)
